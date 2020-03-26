@@ -3,20 +3,78 @@ title: "Format COVID Resources "
 output: html_notebook
 ---
 
+```{r}
+library(tidyverse)
+```
+
+
+
 # Purpose
 
 The purpose of this notebook to format the data received from the Community Alignment Specialist for use with the COVID Agency finder shiny app. 
 
 
+## Import Data
+
+Import the data exactly as it was from the google sheet.
+
+```{r}
+resources <- read_csv("resources.csv")
+```
+
+
+## Data cleaning
+
+Rename columns so there are no hypens or spaces! You will thank me later!
+
+```{r}
+resources2 <- rename(resources,
+                     Program = 'Program Name',
+                     lastUpdated = 'Last Updated',
+                     Mon = 'Mon-Hours',
+                     Tue = 'Tues-Hours',
+                     Wed = 'Wed-Hours',
+                     Thu = 'Thur-Hours',
+                     Fri = 'Fri-Hours',
+                     Sat = 'Sat-Hours',
+                     Sun = 'Sun-Hours',
+                     Address1 = 'Street Address',
+                     Address2 = 'Addressline 2',
+                     Description = 'Program Description')
+```
 
 
 
 
+Always need to clean your data. Check to see if there are blank rows that might have been used to improve readibility but serve no function in a database.
+
+```{r}
+#drop rows in df resources where column 'Organization' is NA
+resources2 <-drop_na(resources2, Organization)
+```
+
+
+Program column can not be left blank. If there is a NA in that column replace NA with the value for the Organization Column.
+
+```{r}
+
+resources2$Program <- if_else(is.na(resources2$Program), #test condition 
+                              resources2$Organization,   #value if test TRUE
+                              resources2$Program)       #value if test FALSE  
+
+
+```
 
 
 
+Replace NA's from operating hours. If column is NA, then replace it with 'Closed'.
 
 
+```{r}
+resources3 <- replace_na(resources2,
+                         list(Mon = "Closed", Tue ="Closed")
+) 
+```
 
 
 
