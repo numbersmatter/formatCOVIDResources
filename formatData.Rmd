@@ -1,0 +1,32 @@
+---
+title: "Format COVID Resources "
+output: html_notebook
+---
+
+# Purpose
+
+The purpose of this notebook to format the data received from the Community Alignment Specialist for use with the COVID Agency finder shiny app. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
