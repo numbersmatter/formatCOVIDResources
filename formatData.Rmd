@@ -5,6 +5,8 @@ output: html_notebook
 
 ```{r}
 library(tidyverse)
+library(config)
+library(ggmap)
 ```
 
 
@@ -103,6 +105,17 @@ resources <-mutate(resources,
 ```
 
 
+Set API keys for google Geocode
+
+```{r}
+config <- config::get()
+
+register_google(key =config$googKey )
+```
+
+
+
+
 ```{r}
 # Loop through the addresses to get the latitude and longitude of each address and add it to the
 # origAddress data frame in new columns lat and lon
@@ -118,6 +131,11 @@ for(i in 1:nrow(resources))
 
 
 
+Save file for use with Finder.
+
+```{r}
+write.csv(resources, file = "resourcesGeocoded.csv", row.names = FALSE )
+```
 
 
 
