@@ -28,7 +28,7 @@ resources <- read_csv("resources.csv")
 Rename columns so there are no hypens or spaces! You will thank me later!
 
 ```{r}
-resources2 <- rename(resources,
+resources <- rename(resources,
                      Program = 'Program Name',
                      lastUpdated = 'Last Updated',
                      Mon = 'Mon-Hours',
@@ -50,7 +50,7 @@ Always need to clean your data. Check to see if there are blank rows that might 
 
 ```{r}
 #drop rows in df resources where column 'Organization' is NA
-resources2 <-drop_na(resources2, Organization)
+resources <-drop_na(resources, Organization)
 ```
 
 
@@ -58,9 +58,9 @@ Program column can not be left blank. If there is a NA in that column replace NA
 
 ```{r}
 
-resources2$Program <- if_else(is.na(resources2$Program), #test condition 
-                              resources2$Organization,   #value if test TRUE
-                              resources2$Program)       #value if test FALSE  
+resources$Program <- if_else(is.na(resources$Program), #test condition 
+                              resources$Organization,   #value if test TRUE
+                              resources$Program)       #value if test FALSE  
 
 
 ```
@@ -71,15 +71,50 @@ Replace NA's from operating hours. If column is NA, then replace it with 'Closed
 
 
 ```{r}
-resources3 <- replace_na(resources2,
-                         list(Mon = "Closed", Tue ="Closed")
+resources <- replace_na(resources,
+                         list(Mon = "Closed", 
+                              Tue ="Closed",
+                              Wed = "Closed",
+                              Thu = "Closed",
+                              Fri = "Closed",
+                              Sat = "Closed",
+                              Sun = "Closed",
+                              County = "Guilford"
+                              )
 ) 
 ```
 
 
+Spot check the number of unique organizations
 
 
+```{r}
+unique(resources[,"Organization"])
+```
 
+
+## Geocode Addresses
+
+Create single address line to pass to Google API
+
+```{r}
+resources <-mutate(resources,
+                   AddressLine = str_c(Address1, " ", City,", ", "NC" , sep = "" ))
+```
+
+
+```{r}
+# Loop through the addresses to get the latitude and longitude of each address and add it to the
+# origAddress data frame in new columns lat and lon
+for(i in 1:nrow(resources))
+{
+  # Print("Working...")
+  result <- geocode(resources$AddressLine[i], output = "latlona", source = "google", )
+  resources$lon[i] <- as.numeric(result[1])
+  resources$lat[i] <- as.numeric(result[2])
+  resources$geoAddress[i] <- as.character(result[3])
+}
+```
 
 
 
