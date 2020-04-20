@@ -3,12 +3,17 @@ title: "Format COVID Resources "
 output: html_notebook
 ---
 
-```{r}
+
+```{r message=FALSE}
 library(tidyverse)
 library(config)
 library(ggmap)
+library(googlesheets4)
+library(httr)
 ```
 
+
+IMPORTANT!!!! Must run gs4_auth() in console to get credentials to work!
 
 
 # Purpose
@@ -21,16 +26,16 @@ The purpose of this notebook to format the data received from the Community Alig
 Import the data exactly as it was from the google sheet.
 
 ```{r}
-resources <- read_csv("resources.csv")
+gs_inputData <- read_sheet("https://docs.google.com/spreadsheets/d/1bSd_SqkWOQMdgAkzsCbOLFK6nQy5OiYVWzzNi4ZuEoo/edit?usp=sharing")
 ```
-
 
 ## Data cleaning
 
 Rename columns so there are no hypens or spaces! You will thank me later!
 
 ```{r}
-resources <- rename(resources,
+gs_inputData <- rename(gs_inputData,
+                     Organization = '...1',
                      Program = 'Program Name',
                      lastUpdated = 'Last Updated',
                      Mon = 'Mon-Hours',
@@ -48,11 +53,56 @@ resources <- rename(resources,
 
 
 
-Always need to clean your data. Check to see if there are blank rows that might have been used to improve readibility but serve no function in a database.
+
+
+
+
+
+
+```{r}
+unique(gs_inputData$City)
+```
+
+
+
+
+Fix the issue around unrecognized text
+This line was deleted by Katelyn 
+
+```{r}
+                     
+
+gs_inputData$City[gs_inputData$Program=="Grab & Go Meals - Laurelwood Apartments"] <- "High Point"
+
+unique(gs_inputData$City)
+```
+
+
+
+```{r}
+gs_inputData <- mutate_at(gs_inputData, 
+                        "City",
+                        str_replace_all,
+                        pattern = "HIgh Point",
+                        replacement = "High Point"
+                                   
+                        
+)
+
+unique(gs_inputData$City)
+```
+
+
+
+
+
+
+
+Check to see if there are blank rows that might have been used to improve readibility but serve no function in a database.
 
 ```{r}
 #drop rows in df resources where column 'Organization' is NA
-resources <-drop_na(resources, Organization)
+gs_inputData <-drop_na(gs_inputData, Organization)
 ```
 
 
@@ -60,39 +110,60 @@ Program column can not be left blank. If there is a NA in that column replace NA
 
 ```{r}
 
-resources$Program <- if_else(is.na(resources$Program), #test condition 
-                              resources$Organization,   #value if test TRUE
-                              resources$Program)       #value if test FALSE  
+gs_inputData$Program <- if_else(is.na(gs_inputData$Program), #test condition 
+                              gs_inputData$Organization,   #value if test TRUE
+                              gs_inputData$Program)       #value if test FALSE  
 
 
 ```
 
 
 
-Replace NA's from operating hours. If column is NA, then replace it with 'Closed'.
+Replace blank cells in spreadsheet with the following text.
 
 
-```{r}
-resources <- replace_na(resources,
-                         list(Mon = "Closed", 
-                              Tue ="Closed",
-                              Wed = "Closed",
-                              Thu = "Closed",
-                              Fri = "Closed",
-                              Sat = "Closed",
-                              Sun = "Closed",
-                              County = "Guilford"
+```{r warning=TRUE}
+gs_inputData<- replace_na(gs_inputData,
+                         list(Mon = "",
+                              Tue = "",
+                              Wed = "",
+                              Thu = "",
+                              Fri = "",
+                              Sat = "",
+                              Sun = "",
+                              County = "Guilford",
+                              Address1= "Guilford County",
+                              City = ""
                               )
-) 
+)
+
+
+ 
 ```
 
 
-Spot check the number of unique organizations
+Trim city column so there are no blankspaces to either side. 
+```{r warning=TRUE}
+
+  
+gs_inputData$City <- str_trim(gs_inputData$City, side = "both")
+```
+
+
+
+
+
+
+
+
 
 
 ```{r}
-unique(resources[,"Organization"])
+unique(gs_inputData$City)
 ```
+
+
+
 
 
 ## Geocode Addresses
@@ -100,9 +171,20 @@ unique(resources[,"Organization"])
 Create single address line to pass to Google API
 
 ```{r}
-resources <-mutate(resources,
+gs_inputData <-mutate(gs_inputData,
                    AddressLine = str_c(Address1, " ", City,", ", "NC" , sep = "" ))
 ```
+
+
+
+Filter out any rows where the address line is NA since this will cause an error on the geocode.
+```{r}
+gs_inputData <- gs_inputData %>%
+  filter( !is.na(AddressLine) )
+  
+```
+
+
 
 
 Set API keys for google Geocode
@@ -116,28 +198,35 @@ register_google(key =config$googKey )
 
 
 
-```{r}
+```{r message=TRUE, warning=TRUE}
+df_4Geocode<- gs_inputData
+
+
 # Loop through the addresses to get the latitude and longitude of each address and add it to the
-# origAddress data frame in new columns lat and lon
-for(i in 1:nrow(resources))
+# df_4Geocode data frame in new columns lat and lon
+for(i in 1:nrow(df_4Geocode))
 {
   # Print("Working...")
-  result <- geocode(resources$AddressLine[i], output = "latlona", source = "google", )
-  resources$lon[i] <- as.numeric(result[1])
-  resources$lat[i] <- as.numeric(result[2])
-  resources$geoAddress[i] <- as.character(result[3])
+  result <- geocode(df_4Geocode$AddressLine[i], output = "all", source = "google", )
+  df_4Geocode$Lon[i] <- as.numeric(result$results[[1]]$geometry$location$lng)
+  
+  df_4Geocode$Lat[i] <- as.numeric(result$results[[1]]$geometry$location$lat)
+  
+  df_4Geocode$Geoaddress[i] <- as.character(result$results[[1]]$formatted_address)
 }
 ```
 
 
-
-Save file for use with Finder.
+Load Data into Data.World
 
 ```{r}
-write.csv(resources, file = "resourcesGeocoded.csv", row.names = FALSE )
+ssid<- "1gvbJPuxXSUwrTjyVtKJEffItIx_H73wlhxsWc0nZFtU"
+
+sheetName <- "upload2DW"
 ```
 
 
-
-
+```{r}
+sheet_write(df_4Geocode, ssid, sheet = sheetName)
+```
 
